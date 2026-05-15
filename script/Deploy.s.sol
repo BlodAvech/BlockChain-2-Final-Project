@@ -22,10 +22,7 @@ contract Deploy is Script {
 
         FeeVault feeVault = new FeeVault();
 
-        PredictionMarket predictionMarket = new PredictionMarket(
-            address(outcomeToken),
-            address(feeVault)
-        );
+        PredictionMarket predictionMarket = new PredictionMarket(address(outcomeToken), address(feeVault));
 
         outcomeToken.setPredictionMarket(address(predictionMarket));
 

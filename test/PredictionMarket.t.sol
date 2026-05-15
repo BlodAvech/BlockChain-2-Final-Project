@@ -15,19 +15,11 @@ contract PredictionMarketTest is Test {
     address user = address(0x123);
 
     function setUp() public {
-        outcomeToken = new OutcomeToken(
-            "Outcome Shares",
-            "OUT",
-            "https://example.com/{id}.json",
-            address(this)
-        );
+        outcomeToken = new OutcomeToken("Outcome Shares", "OUT", "https://example.com/{id}.json", address(this));
 
         feeVault = new FeeVault();
 
-        market = new PredictionMarket(
-            address(outcomeToken),
-            address(feeVault)
-        );
+        market = new PredictionMarket(address(outcomeToken), address(feeVault));
 
         outcomeToken.setPredictionMarket(address(market));
 
@@ -37,12 +29,7 @@ contract PredictionMarketTest is Test {
     function testCreateMarket() public {
         uint256 endTime = block.timestamp + 1 days;
 
-        market.createMarket(
-            "Will BTC be above 100k?",
-            endTime,
-            address(0x1111),
-            100000
-        );
+        market.createMarket("Will BTC be above 100k?", endTime, address(0x1111), 100000);
 
         assertEq(market.marketCount(), 1);
 
@@ -70,26 +57,12 @@ contract PredictionMarketTest is Test {
     function testBuyYes() public {
         uint256 endTime = block.timestamp + 1 days;
 
-        market.createMarket(
-            "Will ETH be above 5k?",
-            endTime,
-            address(0x2222),
-            5000
-        );
+        market.createMarket("Will ETH be above 5k?", endTime, address(0x2222), 5000);
 
         vm.prank(user);
         market.buyYes{value: 2 ether}(0, 1 ether);
 
-        (
-            ,
-            ,
-            ,
-            ,
-            uint256 yesPool,
-            uint256 noPool,
-            ,
-
-        ) = market.markets(0);
+        (,,,, uint256 yesPool, uint256 noPool,,) = market.markets(0);
 
         assertGt(yesPool, 0);
         assertEq(noPool, 0);
