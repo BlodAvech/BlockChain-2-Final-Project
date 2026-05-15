@@ -1,0 +1,11 @@
+{
+  "name": "Market Shares NO",
+  "description": "The NO Outcome token for the prediction market",
+  "image": "ipfs://bafkreievnyiqq5aqeiosslniit7rjn75bn7h4hhyvgcxhl3wnv7672x4hi",
+  "attributes": [
+    {
+      "trait_type": "Symbol",
+      "value": "Msh"
+    }
+  ]
+}

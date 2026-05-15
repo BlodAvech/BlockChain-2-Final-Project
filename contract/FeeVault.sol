@@ -16,8 +16,6 @@ contract FeeVault {
         owner = msg.sender;
     }
 
-    // token и amount передаём для совместимости с интерфейсом,
-    // но реально просто принимаем msg.value
     function depositFees(address token, uint256 amount) external payable {
         token; amount; // игнорируем, чтобы не было warning
         require(msg.value > 0, "no value");
