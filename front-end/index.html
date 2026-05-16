@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ORACLE — On-Chain Prediction Market</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0d1018;
+    --card: #111521;
+    --card2: #0f1420;
+    --border: rgba(255,255,255,0.07);
+    --border-glow: rgba(99,222,177,0.25);
+    --accent: #63DEB1;
+    --accent2: #F5A623;
+    --accent3: #FF5C5C;
+    --dao: #818CF8;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --yes: #63DEB1;
+    --no: #FF5C5C;
+    --glow: 0 0 40px rgba(99,222,177,0.15);
+    --glow-dao: 0 0 40px rgba(129,140,248,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(99,222,177,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,222,177,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2.5rem; height: 64px;
+    background: rgba(8,10,15,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem;
+    letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .logo-dot {
+    width: 8px; height: 8px; background: var(--accent);
+    border-radius: 50%; animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)}
+  }
+  .nav-right { display: flex; align-items: center; gap: 1rem; }
+  .nav-tabs { display: flex; gap: 0.25rem; }
+  .nav-tab {
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: none; color: var(--muted); border: none;
+    padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+  .nav-tab.active { color: var(--accent); background: rgba(99,222,177,0.08); }
+  .nav-tab.dao-tab.active { color: var(--dao); background: rgba(129,140,248,0.08); }
+
+  .network-badge {
+    font-size: 0.7rem; letter-spacing: 0.1em; color: var(--accent);
+    background: rgba(99,222,177,0.1); border: 1px solid rgba(99,222,177,0.25);
+    padding: 0.25rem 0.75rem; border-radius: 100px; text-transform: uppercase;
+  }
+  .btn-connect {
+    font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.08em;
+    color: var(--bg); background: var(--accent); border: none;
+    padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s; text-transform: uppercase; font-weight: 500;
+  }
+  .btn-connect:hover { background: #7FEDC5; transform: translateY(-1px); }
+  .btn-connect.connected {
+    background: transparent; color: var(--accent);
+    border: 1px solid rgba(99,222,177,0.3);
+  }
+
+  /* WALLET BALANCE BAR */
+  .wallet-bar {
+    display: none;
+    position: relative; z-index: 1;
+    background: rgba(13,16,24,0.8);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 2.5rem;
+    gap: 2rem; align-items: center;
+  }
+  .wallet-bar.show { display: flex; }
+  .wb-label { font-size: 0.65rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }
+  .wb-value { font-size: 0.85rem; color: var(--accent); font-weight: 500; margin-left: 0.5rem; }
+  .wb-sep { width: 1px; height: 20px; background: var(--border); }
+  .wb-address { font-size: 0.7rem; color: var(--muted); margin-left: auto; }
+
+  /* HERO */
+  .hero {
+    position: relative; z-index: 1;
+    padding: 4rem 2.5rem 2.5rem; text-align: center;
+  }
+  .hero-tag {
+    display: inline-block; font-size: 0.7rem; letter-spacing: 0.2em;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 1.5rem;
+    border: 1px solid var(--border); padding: 0.3rem 1rem; border-radius: 100px;
+  }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 800; line-height: 1.05; letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, #fff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero p {
+    font-size: 0.95rem; color: var(--muted);
+    max-width: 500px; margin: 0 auto 2.5rem; line-height: 1.7;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    position: relative; z-index: 1;
+    display: flex; justify-content: center; gap: 0;
+    margin: 0 auto 3rem; max-width: 900px;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface); overflow: hidden;
+    margin-left: auto; margin-right: auto;
+    margin-bottom: 3rem;
+    width: calc(100% - 5rem);
+  }
+  .stat-item {
+    flex: 1; padding: 1.25rem 2rem; text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-label { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.4rem; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* SECTION */
+  .section {
+    position: relative; z-index: 1;
+    max-width: 1100px; margin: 0 auto; padding: 0 2.5rem 4rem;
+  }
+  .section-header {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text);
+  }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+  .section-action {
+    font-family: 'DM Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(99,222,177,0.08); color: var(--accent);
+    border: 1px solid rgba(99,222,177,0.2);
+    padding: 0.45rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  }
+  .section-action:hover { background: rgba(99,222,177,0.15); }
+  .section-action.dao-btn {
+    background: rgba(129,140,248,0.08); color: var(--dao);
+    border-color: rgba(129,140,248,0.2);
+  }
+  .section-action.dao-btn:hover { background: rgba(129,140,248,0.15); }
+
+  /* CONTRACT PILLS */
+  .contract-info { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2.5rem; }
+  .contract-pill {
+    font-size: 0.68rem; letter-spacing: 0.05em; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.5rem 0.9rem;
+    display: flex; gap: 0.5rem; align-items: center;
+  }
+  .contract-pill .label { color: var(--accent); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .contract-pill.dao-pill .label { color: var(--dao); }
+  .contract-pill a { color: inherit; text-decoration: none; font-family: 'DM Mono', monospace; }
+  .contract-pill a:hover { color: var(--text); }
+
+  /* MARKET CARDS */
+  .markets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+  }
+  .market-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem;
+    transition: all 0.3s; position: relative; overflow: hidden;
+  }
+  .market-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .market-card:hover { border-color: var(--border-glow); box-shadow: var(--glow); transform: translateY(-2px); }
+  .market-card:hover::before { opacity: 1; }
+  .market-card.resolved { opacity: 0.75; border-style: dashed; }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
+  .market-id { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  .status-badge {
+    font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.2rem 0.6rem;
+    border-radius: 100px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-live   { color: var(--accent); background: rgba(99,222,177,0.1);  border: 1px solid rgba(99,222,177,0.2); }
+  .badge-ended  { color: var(--muted);  background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.2); }
+  .badge-yes    { color: var(--yes);    background: rgba(99,222,177,0.1);  border: 1px solid rgba(99,222,177,0.2); }
+  .badge-no     { color: var(--no);     background: rgba(255,92,92,0.1);   border: 1px solid rgba(255,92,92,0.2); }
+
+  .market-question { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.4; margin-bottom: 1.25rem; color: var(--text); }
+
+  .market-meta { display: flex; gap: 1.5rem; margin-bottom: 1.25rem; }
+  .meta-item { font-size: 0.72rem; color: var(--muted); }
+  .meta-item span { color: var(--text); display: block; margin-top: 2px; }
+
+  /* AMM BAR */
+  .amm-bar {
+    display: flex; height: 6px; border-radius: 100px; overflow: hidden;
+    margin-bottom: 0.5rem; background: rgba(255,255,255,0.05);
+  }
+  .bar-yes { background: var(--yes); transition: width 0.5s ease; }
+  .bar-no  { background: var(--no);  transition: width 0.5s ease; }
+  .amm-labels { display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 1.25rem; }
+  .label-yes { color: var(--yes); }
+  .label-no  { color: var(--no); }
+
+  /* BALANCES STRIP */
+  .balance-strip {
+    display: flex; gap: 0.75rem; margin-bottom: 1rem;
+    padding: 0.6rem 0.8rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+  }
+  .balance-item { font-size: 0.68rem; display: flex; align-items: center; gap: 0.35rem; }
+  .balance-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .balance-yes { color: var(--yes); font-weight: 500; }
+  .balance-no  { color: var(--no);  font-weight: 500; }
+  .balance-zero { color: rgba(107,114,128,0.5); }
+
+  /* TRADE AREA */
+  .trade-area { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .trade-input-group {
+    grid-column: 1 / -1; display: flex; align-items: center;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; transition: border-color 0.2s;
+  }
+  .trade-input-group:focus-within { border-color: rgba(99,222,177,0.4); }
+  .trade-input-group input {
+    flex: 1; background: none; border: none; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.85rem;
+    padding: 0.6rem 0.8rem; outline: none;
+  }
+  .trade-input-group .unit { font-size: 0.7rem; color: var(--muted); padding-right: 0.8rem; letter-spacing: 0.05em; }
+  .btn-yes, .btn-no {
+    font-family: 'DM Mono', monospace; font-size: 0.75rem; letter-spacing: 0.08em;
+    font-weight: 500; border: none; padding: 0.6rem 0.8rem;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  }
+  .btn-yes { background: rgba(99,222,177,0.15); color: var(--yes); border: 1px solid rgba(99,222,177,0.25); }
+  .btn-yes:hover { background: rgba(99,222,177,0.25); transform: translateY(-1px); }
+  .btn-no  { background: rgba(255,92,92,0.12);   color: var(--no);  border: 1px solid rgba(255,92,92,0.25); }
+  .btn-no:hover  { background: rgba(255,92,92,0.22);  transform: translateY(-1px); }
+  .btn-resolve {
+    grid-column: 1 / -1; font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(245,166,35,0.1); color: var(--accent2);
+    border: 1px solid rgba(245,166,35,0.25); padding: 0.5rem;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-resolve:hover { background: rgba(245,166,35,0.2); }
+
+  /* CLAIM WINNINGS */
+  .claim-box {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, rgba(99,222,177,0.06), rgba(245,166,35,0.04));
+    border: 1px solid rgba(99,222,177,0.2);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .claim-title {
+    font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.75rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .claim-title::before { content: '🏆'; font-size: 0.9rem; }
+  .claim-shares {
+    display: flex; gap: 1rem; margin-bottom: 0.9rem;
+    font-size: 0.75rem;
+  }
+  .claim-share-item {
+    flex: 1; padding: 0.5rem 0.75rem;
+    border-radius: 7px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .claim-share-yes { background: rgba(99,222,177,0.08); border: 1px solid rgba(99,222,177,0.15); }
+  .claim-share-no  { background: rgba(255,92,92,0.07);  border: 1px solid rgba(255,92,92,0.15); }
+  .claim-share-label { color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.65rem; }
+  .claim-share-amount-yes { color: var(--yes); font-weight: 500; }
+  .claim-share-amount-no  { color: var(--no);  font-weight: 500; }
+  .claim-outcome-info {
+    font-size: 0.7rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.5;
+  }
+  .btn-claim-main {
+    width: 100%; font-family: 'DM Mono', monospace; font-size: 0.78rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: var(--accent); color: var(--bg);
+    border: none; padding: 0.7rem; border-radius: 8px;
+    cursor: pointer; font-weight: 500; transition: all 0.2s;
+  }
+  .btn-claim-main:hover { background: #7FEDC5; transform: translateY(-1px); }
+  .btn-claim-main:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* EMPTY / LOADING */
+  .empty-state {
+    text-align: center; padding: 4rem 2rem; color: var(--muted);
+    font-size: 0.85rem; border: 1px dashed var(--border); border-radius: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%; margin: 0 auto 1rem;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ──────────────────────────────────────
+     TOAST — длинные уведомления
+  ────────────────────────────────────── */
+  .toast-container {
+    position: fixed; bottom: 2rem; right: 2rem; z-index: 999;
+    display: flex; flex-direction: column; gap: 0.75rem;
+    pointer-events: none;
+  }
+  .toast {
+    display: flex; gap: 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-size: 0.8rem;
+    max-width: 420px;
+    min-width: 300px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
+    animation: toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: all;
+    position: relative;
+    overflow: hidden;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(40px) scale(0.95); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  .toast::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: var(--toast-color, var(--accent));
+    animation: toastBar var(--toast-dur, 6s) linear forwards;
+  }
+  @keyframes toastBar {
+    from { width: 100%; }
+    to   { width: 0%; }
+  }
+  .toast.success { border-color: rgba(99,222,177,0.3); --toast-color: var(--accent); }
+  .toast.error   { border-color: rgba(255,92,92,0.35); --toast-color: var(--no); }
+  .toast.info    { border-color: rgba(99,222,177,0.15); --toast-color: rgba(99,222,177,0.4); }
+  .toast.pending { border-color: rgba(245,166,35,0.3); --toast-color: var(--accent2); }
+
+  .toast-left { display: flex; flex-direction: column; gap: 0.25rem; flex: 1; min-width: 0; }
+  .toast-icon-wrap {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 0.9rem;
+    background: rgba(255,255,255,0.05);
+    margin-top: 1px;
+  }
+  .toast.success .toast-icon-wrap { background: rgba(99,222,177,0.12); }
+  .toast.error   .toast-icon-wrap { background: rgba(255,92,92,0.12); }
+  .toast.pending .toast-icon-wrap { background: rgba(245,166,35,0.12); }
+
+  .toast-title {
+    font-weight: 500; color: var(--text); font-size: 0.82rem;
+    letter-spacing: 0.02em;
+  }
+  .toast-body { color: var(--muted); font-size: 0.74rem; line-height: 1.5; }
+  .toast-body .tx-hash {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    color: var(--accent); word-break: break-all;
+  }
+  .toast-link {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    color: var(--accent); text-decoration: none; font-size: 0.72rem;
+    letter-spacing: 0.05em; margin-top: 0.4rem;
+    padding: 0.3rem 0.6rem; border-radius: 5px;
+    background: rgba(99,222,177,0.08); border: 1px solid rgba(99,222,177,0.15);
+    transition: all 0.2s;
+  }
+  .toast-link:hover { background: rgba(99,222,177,0.15); color: var(--text); }
+  .toast-link svg { flex-shrink: 0; }
+  .toast-close {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 0; flex-shrink: 0;
+    transition: color 0.2s; align-self: flex-start; margin-top: 1px;
+  }
+  .toast-close:hover { color: var(--text); }
+
+  /* DAO PAGE */
+  .dao-hero {
+    position: relative; z-index: 1;
+    padding: 3.5rem 2.5rem 2rem; text-align: center;
+  }
+  .dao-hero h1 {
+    font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 1rem;
+    background: linear-gradient(135deg, #fff 0%, var(--dao) 50%, #fff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .dao-hero p { font-size: 0.9rem; color: var(--muted); max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+  .dao-stats-bar {
+    position: relative; z-index: 1;
+    display: flex; max-width: 700px; margin: 2rem auto 3rem;
+    border: 1px solid rgba(129,140,248,0.15); border-radius: 12px;
+    background: rgba(13,16,24,0.8); overflow: hidden;
+    width: calc(100% - 5rem);
+  }
+  .dao-stat { flex: 1; padding: 1.1rem 1.5rem; text-align: center; border-right: 1px solid rgba(129,140,248,0.1); }
+  .dao-stat:last-child { border-right: none; }
+  .dao-stat .stat-label { color: rgba(129,140,248,0.6); }
+  .dao-stat .stat-value { color: var(--dao); font-size: 1.3rem; }
+
+  /* PROPOSAL CARDS */
+  .proposals-grid { display: flex; flex-direction: column; gap: 1rem; }
+  .proposal-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem;
+    transition: all 0.3s; position: relative; overflow: hidden;
+  }
+  .proposal-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
+    background: var(--dao); opacity: 0.4;
+  }
+  .proposal-card:hover { border-color: rgba(129,140,248,0.25); box-shadow: var(--glow-dao); }
+  .proposal-card.executed::before { background: var(--accent); opacity: 0.6; }
+  .proposal-card.cancelled::before { background: var(--muted); opacity: 0.3; }
+
+  .proposal-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
+  .proposal-id { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  .proposal-badge {
+    font-size: 0.65rem; letter-spacing: 0.1em; padding: 0.2rem 0.6rem;
+    border-radius: 100px; text-transform: uppercase; white-space: nowrap;
+  }
+  .pbadge-active    { color: var(--dao);    background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.2); }
+  .pbadge-passed    { color: var(--accent); background: rgba(99,222,177,0.1);  border: 1px solid rgba(99,222,177,0.2); }
+  .pbadge-executed  { color: var(--accent); background: rgba(99,222,177,0.15); border: 1px solid rgba(99,222,177,0.3); }
+  .pbadge-rejected  { color: var(--no);     background: rgba(255,92,92,0.1);   border: 1px solid rgba(255,92,92,0.2); }
+  .pbadge-cancelled { color: var(--muted);  background: rgba(107,114,128,0.1); border: 1px solid rgba(107,114,128,0.2); }
+
+  .proposal-question { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.4; margin-bottom: 0.5rem; color: var(--text); }
+  .proposal-meta { display: flex; gap: 1.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .proposal-meta .meta-item { font-size: 0.7rem; color: var(--muted); }
+  .proposal-meta .meta-item span { color: var(--text); display: block; margin-top: 2px; }
+
+  /* VOTE BAR */
+  .vote-bar-wrap { margin-bottom: 1rem; }
+  .vote-bar {
+    display: flex; height: 8px; border-radius: 100px; overflow: hidden;
+    background: rgba(255,255,255,0.05); margin-bottom: 0.4rem;
+  }
+  .vote-for { background: var(--dao); transition: width 0.5s ease; }
+  .vote-against { background: rgba(255,92,92,0.6); transition: width 0.5s ease; }
+  .vote-labels { display: flex; justify-content: space-between; font-size: 0.68rem; }
+  .vote-for-label { color: var(--dao); }
+  .vote-against-label { color: rgba(255,92,92,0.7); }
+
+  .proposal-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+  .btn-vote-for, .btn-vote-against, .btn-execute-p, .btn-cancel-p {
+    font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em;
+    text-transform: uppercase; border: none; padding: 0.5rem 1rem;
+    border-radius: 7px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-vote-for {
+    background: rgba(129,140,248,0.12); color: var(--dao);
+    border: 1px solid rgba(129,140,248,0.25);
+  }
+  .btn-vote-for:hover { background: rgba(129,140,248,0.22); transform: translateY(-1px); }
+  .btn-vote-against {
+    background: rgba(255,92,92,0.1); color: var(--no);
+    border: 1px solid rgba(255,92,92,0.2);
+  }
+  .btn-vote-against:hover { background: rgba(255,92,92,0.2); transform: translateY(-1px); }
+  .btn-execute-p {
+    background: rgba(99,222,177,0.1); color: var(--accent);
+    border: 1px solid rgba(99,222,177,0.2);
+  }
+  .btn-execute-p:hover { background: rgba(99,222,177,0.2); transform: translateY(-1px); }
+  .btn-cancel-p {
+    background: rgba(107,114,128,0.08); color: var(--muted);
+    border: 1px solid rgba(107,114,128,0.15);
+  }
+  .btn-cancel-p:hover { background: rgba(107,114,128,0.15); }
+  .voted-badge {
+    font-size: 0.7rem; color: var(--muted); padding: 0.4rem 0.75rem;
+    border: 1px dashed rgba(107,114,128,0.2); border-radius: 6px;
+    letter-spacing: 0.06em;
+  }
+
+  /* DISPUTES */
+  .dispute-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem; position: relative; overflow: hidden;
+  }
+  .dispute-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0;
+    background: var(--accent2); opacity: 0.5;
+  }
+  .dispute-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 1rem; }
+  .dispute-id { font-size: 0.65rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  .dispute-resolved-badge {
+    font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 100px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); background: rgba(99,222,177,0.1); border: 1px solid rgba(99,222,177,0.2);
+  }
+  .dispute-open-badge {
+    font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 100px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent2); background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.2);
+  }
+  .dispute-reason { font-size: 0.8rem; color: var(--text); line-height: 1.5; margin-bottom: 0.75rem; }
+  .dispute-meta { font-size: 0.68rem; color: var(--muted); display: flex; gap: 1rem; flex-wrap: wrap; }
+  .btn-resolve-dispute {
+    font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.08em;
+    text-transform: uppercase; margin-top: 0.75rem;
+    background: rgba(245,166,35,0.1); color: var(--accent2);
+    border: 1px solid rgba(245,166,35,0.25); padding: 0.45rem 1rem;
+    border-radius: 7px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-resolve-dispute:hover { background: rgba(245,166,35,0.2); }
+
+  /* MODALS */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border-glow);
+    border-radius: 18px; padding: 2rem; width: 100%; max-width: 440px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5), var(--glow);
+    transform: scale(0.95) translateY(10px); transition: transform 0.25s;
+  }
+  .modal.dao-modal { border-color: rgba(129,140,248,0.25); box-shadow: 0 40px 80px rgba(0,0,0,0.5), var(--glow-dao); }
+  .modal-overlay.open .modal { transform: scale(1) translateY(0); }
+  .modal-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text); }
+  .modal-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+  .modal-field { margin-bottom: 1rem; }
+  .modal-label { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 0.4rem; display: block; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.82rem; padding: 0.6rem 0.9rem; outline: none; transition: border-color 0.2s;
+  }
+  .modal textarea { min-height: 70px; resize: vertical; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color: rgba(99,222,177,0.4); }
+  .modal select option { background: var(--card); }
+  .modal-actions { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+  .btn-primary {
+    flex: 1; font-family: 'DM Mono', monospace; font-size: 0.8rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 0.7rem; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #7FEDC5; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary.dao-primary { background: var(--dao); }
+  .btn-primary.dao-primary:hover { background: #a5b4fc; }
+  .btn-ghost {
+    font-family: 'DM Mono', monospace; font-size: 0.8rem; letter-spacing: 0.08em;
+    text-transform: uppercase; background: none; color: var(--muted);
+    border: 1px solid var(--border); padding: 0.7rem 1.25rem;
+    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+  /* FOOTER */
+  footer {
+    position: relative; z-index: 1; text-align: center;
+    padding: 2rem; border-top: 1px solid var(--border);
+    font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo"><div class="logo-dot"></div>ORACLE</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tabMarkets" onclick="showPage('markets')">Markets</button>
+    <button class="nav-tab dao-tab" id="tabDAO" onclick="showPage('dao')">DAO</button>
+  </div>
+  <div class="nav-right">
+    <div class="network-badge">Sepolia</div>
+    <button class="btn-connect" id="btnConnect" onclick="connectWallet()">Connect Wallet</button>
+  </div>
+</nav>
+
+<!-- WALLET BALANCE BAR -->
+<div class="wallet-bar" id="walletBar">
+  <span class="wb-label">ETH Balance</span><span class="wb-value" id="wbEth">—</span>
+  <div class="wb-sep"></div>
+  <span class="wb-label">YES Tokens</span><span class="wb-value" id="wbYes" style="color:var(--yes)">—</span>
+  <div class="wb-sep"></div>
+  <span class="wb-label">NO Tokens</span><span class="wb-value" id="wbNo" style="color:var(--no)">—</span>
+  <span class="wb-address" id="wbAddr"></span>
+</div>
+
+<!-- ══════════════════════════════
+     PAGE: MARKETS
+══════════════════════════════ -->
+<div class="page active" id="pageMarkets">
+
+  <section class="hero">
+    <div class="hero-tag">On-Chain · Binary Outcome · AMM Pricing</div>
+    <h1>Predict the Future.<br/>On-Chain.</h1>
+    <p>Trade YES/NO outcome shares on prediction markets backed by Chainlink oracles. Every position is an ERC-1155 token on Sepolia.</p>
+  </section>
+
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-item"><div class="stat-label">Total Markets</div><div class="stat-value" id="statMarkets">—</div></div>
+    <div class="stat-item"><div class="stat-label">Total Volume</div><div class="stat-value" id="statVolume">—</div></div>
+    <div class="stat-item"><div class="stat-label">Active Markets</div><div class="stat-value" id="statActive">—</div></div>
+    <div class="stat-item"><div class="stat-label">Protocol Fee</div><div class="stat-value">0.3%</div></div>
+  </div>
+
+  <div class="section">
+    <div class="contract-info">
+      <div class="contract-pill">
+        <span class="label">PredictionMarket</span>
+        <a href="https://sepolia.etherscan.io/address/0x1f271203a5e38683b47411cb9061015d61206b62" target="_blank">0x1f27...6b62</a>
+      </div>
+      <div class="contract-pill">
+        <span class="label">OutcomeToken (ERC-1155)</span>
+        <a href="https://sepolia.etherscan.io/address/0xcc2ce70a9fc590d0d890b8a33d45fca109469f21" target="_blank">0xcc2c...9f21</a>
+      </div>
+      <div class="contract-pill">
+        <span class="label">FeeVault</span>
+        <a href="https://sepolia.etherscan.io/address/0x879e1b738856658f8d0c6a0d5364a32bdc244e22" target="_blank">0x879e...4e22</a>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Markets</div>
+      <div class="section-line"></div>
+      <button class="section-action" onclick="loadMarkets()">↻ Refresh</button>
+      <button class="section-action" onclick="openCreateModal()">+ New Market</button>
+    </div>
+
+    <div class="markets-grid" id="marketsGrid">
+      <div class="empty-state">
+        <div class="spinner"></div>
+        Connect wallet or wait for read-only load...
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     PAGE: DAO
+══════════════════════════════ -->
+<div class="page" id="pageDAO">
+
+  <div class="dao-hero">
+    <div class="hero-tag">Governance · Proposals · Disputes</div>
+    <h1>MarketDAO</h1>
+    <p>Propose new prediction markets, vote on proposals, and raise disputes. Governance controls market creation and resolution.</p>
+  </div>
+
+  <div class="dao-stats-bar" id="daoStatsBar">
+    <div class="dao-stat stat-item"><div class="stat-label">Proposals</div><div class="stat-value" id="daoStatProps">—</div></div>
+    <div class="dao-stat stat-item"><div class="stat-label">Active</div><div class="stat-value" id="daoStatActive">—</div></div>
+    <div class="dao-stat stat-item"><div class="stat-label">Disputes</div><div class="stat-value" id="daoStatDisputes">—</div></div>
+  </div>
+
+  <div class="section">
+    <div class="contract-info">
+      <div class="contract-pill dao-pill">
+        <span class="label">MarketDAO</span>
+        <a href="https://sepolia.etherscan.io/address/0x0000000000000000000000000000000000000000" target="_blank">Deploy needed</a>
+      </div>
+    </div>
+
+    <!-- PROPOSALS -->
+    <div class="section-header">
+      <div class="section-title">Proposals</div>
+      <div class="section-line"></div>
+      <button class="section-action" onclick="loadDAO()">↻ Refresh</button>
+      <button class="section-action dao-btn" onclick="openPropModal()">+ Propose Market</button>
+    </div>
+
+    <div class="proposals-grid" id="proposalsGrid">
+      <div class="empty-state">
+        <div class="spinner"></div>
+        Connect wallet to load DAO data
+      </div>
+    </div>
+
+    <!-- DISPUTES -->
+    <div class="section-header" style="margin-top: 3rem;">
+      <div class="section-title">Disputes</div>
+      <div class="section-line"></div>
+      <button class="section-action dao-btn" onclick="openDisputeModal()">⚠ Open Dispute</button>
+    </div>
+
+    <div id="disputesGrid" style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="empty-state" style="padding: 2rem;">No disputes yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  ORACLE PROTOCOL &nbsp;·&nbsp; SEPOLIA TESTNET &nbsp;·&nbsp; CHAIN ID 11155111 &nbsp;·&nbsp; POWERED BY CHAINLINK &nbsp;·&nbsp; GOVERNED BY DAO
+</footer>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══ MODAL: CREATE MARKET (owner) ═══ -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <div class="modal-title">Create Market Directly</div>
+    <div class="modal-sub">Only contract owner can call this. For governance, use the DAO → Propose Market flow.</div>
+    <div class="modal-field"><label class="modal-label">Question</label>
+      <input type="text" id="newQuestion" placeholder="Will ETH exceed $5000 by Dec 2025?" /></div>
+    <div class="modal-field"><label class="modal-label">Oracle Feed</label>
+      <select id="newFeed">
+        <option value="0x694AA1769357215DE4FAC081bf1f309aDC325306">ETH/USD (Sepolia)</option>
+        <option value="0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43">BTC/USD (Sepolia)</option>
+      </select></div>
+    <div class="modal-field"><label class="modal-label">Strike Price (8 decimals — e.g. 500000000000 = $5000)</label>
+      <input type="number" id="newStrike" placeholder="500000000000" /></div>
+    <div class="modal-field"><label class="modal-label">End Time (Unix timestamp)</label>
+      <input type="number" id="newEndTime" /></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('createModal')">Cancel</button>
+      <button class="btn-primary" id="btnCreate" onclick="createMarket()">Create Market</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: PROPOSE MARKET (DAO) ═══ -->
+<div class="modal-overlay" id="propModal">
+  <div class="modal dao-modal">
+    <div class="modal-title">Propose New Market</div>
+    <div class="modal-sub">Submit a market proposal to the DAO. Anyone can propose; holders vote; owner executes if passed.</div>
+    <div class="modal-field"><label class="modal-label">Question</label>
+      <input type="text" id="propQuestion" placeholder="Will BTC reach $150k in 2025?" /></div>
+    <div class="modal-field"><label class="modal-label">Oracle Feed</label>
+      <select id="propFeed">
+        <option value="0x694AA1769357215DE4FAC081bf1f309aDC325306">ETH/USD (Sepolia)</option>
+        <option value="0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43">BTC/USD (Sepolia)</option>
+      </select></div>
+    <div class="modal-field"><label class="modal-label">Strike Price (8 decimals)</label>
+      <input type="number" id="propStrike" placeholder="15000000000000" /></div>
+    <div class="modal-field"><label class="modal-label">Market End Time (Unix)</label>
+      <input type="number" id="propEndTime" /></div>
+    <div class="modal-field"><label class="modal-label">Voting Duration (seconds — e.g. 259200 = 3 days)</label>
+      <input type="number" id="propVotingDur" value="259200" /></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('propModal')">Cancel</button>
+      <button class="btn-primary dao-primary" id="btnPropose" onclick="submitProposal()">Submit Proposal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: OPEN DISPUTE ═══ -->
+<div class="modal-overlay" id="disputeModal">
+  <div class="modal dao-modal">
+    <div class="modal-title">Open Dispute</div>
+    <div class="modal-sub">Challenge a market resolution. The DAO owner will review and can trigger re-resolution.</div>
+    <div class="modal-field"><label class="modal-label">Market ID</label>
+      <input type="number" id="disputeMarketId" placeholder="0" min="0" /></div>
+    <div class="modal-field"><label class="modal-label">Reason</label>
+      <textarea id="disputeReason" placeholder="Describe why you believe the outcome is incorrect or the oracle data is stale..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('disputeModal')">Cancel</button>
+      <button class="btn-primary dao-primary" id="btnDispute" onclick="submitDispute()">Open Dispute</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const PM_ADDRESS  = "0x1f271203a5e38683b47411cb9061015d61206b62";
+const OT_ADDRESS  = "0xcc2ce70a9fc590d0d890b8a33d45fca109469f21";
+const FV_ADDRESS  = "0x879e1b738856658f8d0c6a0d5364a32bdc244e22";
+// DAO address — replace after deployment
+const DAO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const CHAIN_ID    = 11155111;
+const ETHERSCAN   = "https://sepolia.etherscan.io";
+
+const PM_ABI = [
+  "function marketCount() view returns (uint256)",
+  "function markets(uint256) view returns (string question,uint256 endTime,bool resolved,bool outcome,uint256 yesPool,uint256 noPool,address chainlinkFeed,int256 strikePrice)",
+  "function buyYes(uint256 marketId, uint256 amount) payable",
+  "function buyNo(uint256 marketId, uint256 amount) payable",
+  "function resolveMarket(uint256 marketId)",
+  "function claimWinnings(uint256 marketId, uint256 amountYes, uint256 amountNo)",
+  "function createMarket(string question, uint256 endTime, address chainlinkFeed, int256 strikePrice)",
+  "event BoughtYes(uint256 indexed marketId, address indexed buyer, uint256 amount, uint256 cost)",
+  "event BoughtNo(uint256 indexed marketId, address indexed buyer, uint256 amount, uint256 cost)",
+  "event MarketResolved(uint256 indexed marketId, bool outcome)",
+  "event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 payout)",
+];
+const OT_ABI = [
+  "function balanceOf(address account, uint256 id) view returns (uint256)",
+  "function yesId(uint256 marketId) pure returns (uint256)",
+  "function noId(uint256 marketId) pure returns (uint256)",
+];
+const DAO_ABI = [
+  "function proposalCount() view returns (uint256)",
+  "function disputeCount() view returns (uint256)",
+  "function proposals(uint256) view returns (string question,uint256 endTime,address chainlinkFeed,int256 strikePrice,uint256 createdAt,uint256 votingDeadline,uint256 votesFor,uint256 votesAgainst,bool executed,bool cancelled)",
+  "function disputes(uint256) view returns (uint256 marketId,address disputor,string reason,bool resolved)",
+  "function hasVoted(uint256 proposalId, address voter) view returns (bool)",
+  "function createMarketProposal(string question,uint256 endTime,address chainlinkFeed,int256 strikePrice,uint256 votingDuration)",
+  "function voteOnProposal(uint256 proposalId, bool support)",
+  "function executeProposal(uint256 proposalId)",
+  "function cancelProposal(uint256 proposalId)",
+  "function openDispute(uint256 marketId, string reason)",
+  "function resolveDispute(uint256 disputeId)",
+  "event ProposalCreated(uint256 indexed proposalId, string question, uint256 endTime, address chainlinkFeed, int256 strikePrice, uint256 votingDeadline)",
+  "event Voted(uint256 indexed proposalId, address indexed voter, bool support)",
+  "event DisputeOpened(uint256 indexed disputeId, uint256 indexed marketId, address indexed disputor, string reason)",
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let provider, signer, account;
+let pmContract, otContract, daoContract;
+let markets = [];
+let proposals = [];
+let disputes = [];
+let currentPage = 'markets';
+
+// ─────────────────────────────────────────────
+// PAGE NAVIGATION
+// ─────────────────────────────────────────────
+function showPage(p) {
+  currentPage = p;
+  document.getElementById('pageMarkets').classList.toggle('active', p === 'markets');
+  document.getElementById('pageDAO').classList.toggle('active', p === 'dao');
+  document.getElementById('tabMarkets').classList.toggle('active', p === 'markets');
+  document.getElementById('tabDAO').classList.toggle('active', p === 'dao');
+  document.getElementById('tabDAO').classList.toggle('dao-tab', true);
+  if (p === 'dao') loadDAO();
+}
+
+// ─────────────────────────────────────────────
+// CONNECT WALLET
+// ─────────────────────────────────────────────
+async function connectWallet() {
+  if (!window.ethereum) { toast('MetaMask not found', 'error', 'Wallet Required', 'Install MetaMask to interact with the protocol.'); return; }
+  try {
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    const network = await provider.getNetwork();
+    if (network.chainId !== CHAIN_ID) {
+      try {
+        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xaa36a7' }] });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      } catch(e) {
+        toast('Wrong Network', 'error', 'Switch to Sepolia', 'Please switch to Sepolia testnet in MetaMask (Chain ID 11155111).'); return;
+      }
+    }
+    signer = provider.getSigner();
+    account = await signer.getAddress();
+    pmContract  = new ethers.Contract(PM_ADDRESS, PM_ABI, signer);
+    otContract  = new ethers.Contract(OT_ADDRESS, OT_ABI, provider);
+    daoContract = new ethers.Contract(DAO_ADDRESS, DAO_ABI, signer);
+
+    const btn = document.getElementById('btnConnect');
+    btn.textContent = account.slice(0,6) + '...' + account.slice(-4);
+    btn.classList.add('connected');
+
+    document.getElementById('walletBar').classList.add('show');
+    document.getElementById('wbAddr').textContent = account;
+    updateWalletBar();
+
+    toast('Connected', 'success', 'Wallet Connected', `Address: ${account.slice(0,10)}...${account.slice(-6)}`);
+    loadMarkets();
+    window.ethereum.on('accountsChanged', () => location.reload());
+  } catch(e) {
+    toast('Failed', 'error', 'Connection Failed', e.message || String(e));
+  }
+}
+
+async function updateWalletBar() {
+  if (!account || !provider) return;
+  try {
+    const bal = await provider.getBalance(account);
+    document.getElementById('wbEth').textContent = parseFloat(ethers.utils.formatEther(bal)).toFixed(4) + ' ETH';
+  } catch {}
+  // Sum all YES/NO tokens across markets
+  if (otContract && markets.length > 0) {
+    let totalYes = ethers.BigNumber.from(0);
+    let totalNo  = ethers.BigNumber.from(0);
+    for (let i = 0; i < markets.length; i++) {
+      try {
+        const [y, n] = await Promise.all([
+          otContract.balanceOf(account, i * 2),
+          otContract.balanceOf(account, i * 2 + 1),
+        ]);
+        totalYes = totalYes.add(y);
+        totalNo  = totalNo.add(n);
+      } catch {}
+    }
+    document.getElementById('wbYes').textContent = ethers.utils.formatEther(totalYes) + ' YES';
+    document.getElementById('wbNo').textContent  = ethers.utils.formatEther(totalNo)  + ' NO';
+  }
+}
+
+// ─────────────────────────────────────────────
+// LOAD MARKETS
+// ─────────────────────────────────────────────
+async function loadMarkets() {
+  const grid = document.getElementById('marketsGrid');
+  if (!pmContract) {
+    try {
+      const ro = new ethers.providers.JsonRpcProvider("https://rpc.sepolia.org");
+      const pmRo = new ethers.Contract(PM_ADDRESS, PM_ABI, ro);
+      const count = (await pmRo.marketCount()).toNumber();
+      markets = [];
+      for (let i = 0; i < count; i++) markets.push(await pmRo.markets(i));
+      updateStats();
+      renderMarkets(true);
+    } catch(e) {
+      grid.innerHTML = `<div class="empty-state"><div class="spinner"></div>Connect wallet to view markets</div>`;
+    }
+    return;
+  }
+  grid.innerHTML = `<div class="empty-state"><div class="spinner"></div>Loading markets...</div>`;
+  try {
+    const count = (await pmContract.marketCount()).toNumber();
+    markets = [];
+    for (let i = 0; i < count; i++) markets.push(await pmContract.markets(i));
+    updateStats();
+    renderMarkets(false);
+    updateWalletBar();
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state">Failed to load: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function updateStats() {
+  const now = Math.floor(Date.now() / 1000);
+  document.getElementById('statMarkets').textContent = markets.length;
+  document.getElementById('statActive').textContent = markets.filter(m => !m.resolved && m.endTime.toNumber() > now).length;
+  let vol = ethers.BigNumber.from(0);
+  for (const m of markets) vol = vol.add(m.yesPool).add(m.noPool);
+  document.getElementById('statVolume').textContent = parseFloat(ethers.utils.formatEther(vol)).toFixed(4) + ' ETH';
+}
+
+async function renderMarkets(readOnly) {
+  const grid = document.getElementById('marketsGrid');
+  if (markets.length === 0) {
+    grid.innerHTML = `<div class="empty-state">No markets yet.<br/>Use DAO to propose one, or create directly if you're the owner.</div>`;
+    return;
+  }
+
+  let balances = {};
+  if (account && otContract) {
+    for (let i = 0; i < markets.length; i++) {
+      try {
+        const [y, n] = await Promise.all([
+          otContract.balanceOf(account, i * 2),
+          otContract.balanceOf(account, i * 2 + 1),
+        ]);
+        balances[i] = { yes: y, no: n };
+      } catch { balances[i] = { yes: ethers.BigNumber.from(0), no: ethers.BigNumber.from(0) }; }
+    }
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  grid.innerHTML = '';
+
+  for (let i = markets.length - 1; i >= 0; i--) {
+    const m = markets[i];
+    const endTime = m.endTime.toNumber();
+    const live     = !m.resolved && endTime > now;
+    const ended    = !m.resolved && endTime <= now;
+    const resolved = m.resolved;
+
+    const yesPool = parseFloat(ethers.utils.formatEther(m.yesPool));
+    const noPool  = parseFloat(ethers.utils.formatEther(m.noPool));
+    const total   = yesPool + noPool;
+    const yesPct  = total > 0 ? (yesPool / total * 100).toFixed(1) : '50.0';
+    const noPct   = total > 0 ? (noPool  / total * 100).toFixed(1) : '50.0';
+
+    let badge = '';
+    if (live)                       badge = '<span class="status-badge badge-live">● Live</span>';
+    else if (ended)                  badge = '<span class="status-badge badge-ended">Ended</span>';
+    else if (resolved && m.outcome)  badge = '<span class="status-badge badge-yes">✓ YES Won</span>';
+    else if (resolved && !m.outcome) badge = '<span class="status-badge badge-no">✗ NO Won</span>';
+
+    const endDate = new Date(endTime * 1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const strikeFormatted = (Number(m.strikePrice) / 1e8).toLocaleString('en-US',{style:'currency',currency:'USD'});
+
+    const bal = balances[i] || { yes: ethers.BigNumber.from(0), no: ethers.BigNumber.from(0) };
+    const hasYes = bal.yes.gt(0);
+    const hasNo  = bal.no.gt(0);
+    const hasAny = hasYes || hasNo;
+
+    // Balance strip (shown when connected)
+    let balStrip = '';
+    if (account) {
+      const yF = parseFloat(ethers.utils.formatEther(bal.yes)).toFixed(4);
+      const nF = parseFloat(ethers.utils.formatEther(bal.no)).toFixed(4);
+      balStrip = `
+        <div class="balance-strip">
+          <span class="balance-item"><span class="balance-label">Your YES:</span> <span class="${hasYes ? 'balance-yes' : 'balance-zero'}">${yF}</span></span>
+          <span class="balance-item"><span class="balance-label" style="margin-left:0.75rem">Your NO:</span> <span class="${hasNo  ? 'balance-no'  : 'balance-zero'}">${nF}</span></span>
+        </div>`;
+    }
+
+    // Trade / claim area
+    let tradeArea = '';
+    if (live && !readOnly) {
+      tradeArea = `
+        <div class="trade-area">
+          <div class="trade-input-group">
+            <input type="number" id="amt-${i}" placeholder="0.001" step="0.001" min="0.001" />
+            <span class="unit">ETH</span>
+          </div>
+          <button class="btn-yes" onclick="buyOutcome(${i},'yes')">↑ Buy YES</button>
+          <button class="btn-no"  onclick="buyOutcome(${i},'no')">↓ Buy NO</button>
+        </div>`;
+    } else if (ended && !readOnly) {
+      tradeArea = `<div class="trade-area"><button class="btn-resolve" onclick="resolveMarket(${i})">⚡ Resolve via Chainlink</button></div>`;
+    } else if (resolved && hasAny && !readOnly) {
+      // Full Claim Winnings UI
+      const yF = parseFloat(ethers.utils.formatEther(bal.yes)).toFixed(6);
+      const nF = parseFloat(ethers.utils.formatEther(bal.no)).toFixed(6);
+      const winSide = m.outcome ? 'YES' : 'NO';
+      const loseSide = m.outcome ? 'NO' : 'YES';
+      const hasWin = m.outcome ? hasYes : hasNo;
+      tradeArea = `
+        <div class="trade-area">
+          <div class="claim-box">
+            <div class="claim-title">Claim Your Winnings</div>
+            <div class="claim-shares">
+              <div class="claim-share-item claim-share-yes">
+                <span class="claim-share-label">YES shares</span>
+                <span class="claim-share-amount-yes">${yF}</span>
+              </div>
+              <div class="claim-share-item claim-share-no">
+                <span class="claim-share-label">NO shares</span>
+                <span class="claim-share-amount-no">${nF}</span>
+              </div>
+            </div>
+            <div class="claim-outcome-info">
+              Outcome: <strong style="color:${m.outcome?'var(--yes)':'var(--no)'}">${winSide} won</strong>.
+              ${hasWin
+                ? `Your ${winSide} shares are redeemable for a proportional share of the total pool (${total.toFixed(4)} ETH).`
+                : `You held ${loseSide} shares — they will be burned with no payout. Your winnings: 0 ETH.`
+              }
+            </div>
+            <button class="btn-claim-main" id="claim-btn-${i}" onclick="claimWinnings(${i},'${bal.yes.toString()}','${bal.no.toString()}')">
+              ${hasWin ? '🏆 Claim Winnings' : '🗑 Burn Losing Shares'}
+            </button>
+          </div>
+        </div>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'market-card' + (resolved ? ' resolved' : '');
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="market-id">Market #${i}</div>
+        ${badge}
+      </div>
+      <div class="market-question">${escHtml(m.question)}</div>
+      <div class="market-meta">
+        <div class="meta-item">Closes<span>${endDate}</span></div>
+        <div class="meta-item">Strike<span>${strikeFormatted}</span></div>
+        <div class="meta-item">Volume<span>${total.toFixed(4)} ETH</span></div>
+      </div>
+      <div class="amm-bar">
+        <div class="bar-yes" style="width:${yesPct}%"></div>
+        <div class="bar-no"  style="width:${noPct}%"></div>
+      </div>
+      <div class="amm-labels">
+        <span class="label-yes">YES ${yesPct}%</span>
+        <span class="label-no">NO ${noPct}%</span>
+      </div>
+      ${balStrip}
+      ${tradeArea}
+    `;
+    grid.appendChild(card);
+  }
+}
+
+// ─────────────────────────────────────────────
+// MARKET ACTIONS
+// ─────────────────────────────────────────────
+async function buyOutcome(marketId, side) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  const input = document.getElementById(`amt-${marketId}`);
+  const ethVal = parseFloat(input.value);
+  if (!ethVal || ethVal <= 0) { toast('Invalid Amount', 'error', 'Enter Amount', 'Please enter a positive ETH amount.'); return; }
+
+  const amount = ethers.utils.parseEther(ethVal.toFixed(6));
+  const feeBuffer = amount.mul(103).div(100);
+
+  try {
+    toast('Awaiting Signature', 'pending', `Buy ${side.toUpperCase()} — Market #${marketId}`, `Buying ${ethVal} ETH worth of ${side.toUpperCase()} shares. Please confirm in MetaMask.`);
+    let tx;
+    if (side === 'yes') tx = await pmContract.buyYes(marketId, amount, { value: feeBuffer });
+    else                tx = await pmContract.buyNo(marketId,  amount, { value: feeBuffer });
+
+    toast('Pending', 'pending', 'Transaction Submitted', `Your ${side.toUpperCase()} buy is being processed on-chain.\nTx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Confirmed', 'success', `✓ Bought ${side.toUpperCase()} Shares`,
+      `Successfully purchased ${ethVal} ETH of ${side.toUpperCase()} shares on Market #${marketId}.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    loadMarkets();
+  } catch(e) {
+    toast('Failed', 'error', 'Transaction Failed', e.reason || e.message || 'Unknown error');
+  }
+}
+
+async function resolveMarket(marketId) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  try {
+    toast('Resolving', 'pending', `Resolve Market #${marketId}`, 'Querying Chainlink oracle and resolving outcome. Please confirm in MetaMask.');
+    const tx = await pmContract.resolveMarket(marketId);
+    toast('Pending', 'pending', 'Resolution Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Resolved', 'success', `✓ Market #${marketId} Resolved`,
+      `The Chainlink oracle price has been read and the outcome is now final.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    loadMarkets();
+  } catch(e) {
+    toast('Failed', 'error', 'Resolution Failed', e.reason || e.message || 'The 24h dispute window may not have passed yet.');
+  }
+}
+
+async function claimWinnings(marketId, amtYes, amtNo) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  const btn = document.getElementById(`claim-btn-${marketId}`);
+  if (btn) btn.disabled = true;
+  try {
+    toast('Claiming', 'pending', `Claim Winnings — Market #${marketId}`, 'Burning your outcome tokens and sending your ETH payout. Please confirm in MetaMask.');
+    const tx = await pmContract.claimWinnings(marketId, amtYes, amtNo);
+    toast('Pending', 'pending', 'Claim Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Claimed', 'success', `🏆 Winnings Claimed — Market #${marketId}`,
+      `Your outcome tokens have been burned and the ETH payout has been sent to your wallet.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    loadMarkets();
+  } catch(e) {
+    if (btn) btn.disabled = false;
+    toast('Failed', 'error', 'Claim Failed', e.reason || e.message || 'Unknown error');
+  }
+}
+
+async function createMarket() {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  const question = document.getElementById('newQuestion').value.trim();
+  const feed     = document.getElementById('newFeed').value;
+  const strike   = document.getElementById('newStrike').value;
+  const endTime  = document.getElementById('newEndTime').value;
+  if (!question || !strike || !endTime) { toast('Missing Fields', 'error', 'Fill All Fields', 'All fields are required.'); return; }
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true; btn.textContent = 'Creating...';
+  try {
+    toast('Creating', 'pending', 'Create Market', 'Please confirm in MetaMask...');
+    const tx = await pmContract.createMarket(question, parseInt(endTime), feed, strike);
+    toast('Pending', 'pending', 'Market Creation Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Created', 'success', '✓ Market Created',
+      `"${question.slice(0,60)}${question.length>60?'...':''}" is now live on-chain.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    closeModal('createModal');
+    loadMarkets();
+  } catch(e) {
+    toast('Failed', 'error', 'Creation Failed', e.reason || e.message || 'Unknown error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Market';
+  }
+}
+
+// ─────────────────────────────────────────────
+// LOAD DAO
+// ─────────────────────────────────────────────
+async function loadDAO() {
+  const propGrid = document.getElementById('proposalsGrid');
+  const dispGrid = document.getElementById('disputesGrid');
+
+  if (!daoContract || DAO_ADDRESS === "0x0000000000000000000000000000000000000000") {
+    propGrid.innerHTML = `<div class="empty-state">
+      <div style="font-size:1.5rem;margin-bottom:0.75rem">🏛</div>
+      MarketDAO not yet deployed.<br/>
+      <span style="font-size:0.72rem;margin-top:0.5rem;display:block">Deploy MarketDAO.sol and update the DAO_ADDRESS constant.</span>
+    </div>`;
+    dispGrid.innerHTML = `<div class="empty-state" style="padding:2rem">Deploy DAO to manage disputes</div>`;
+    // Update DAO stats
+    document.getElementById('daoStatProps').textContent = '—';
+    document.getElementById('daoStatActive').textContent = '—';
+    document.getElementById('daoStatDisputes').textContent = '—';
+    return;
+  }
+
+  propGrid.innerHTML = `<div class="empty-state"><div class="spinner"></div>Loading proposals...</div>`;
+  try {
+    const propCount = (await daoContract.proposalCount()).toNumber();
+    const dispCount = (await daoContract.disputeCount()).toNumber();
+    proposals = [];
+    disputes  = [];
+    for (let i = 0; i < propCount; i++) proposals.push(await daoContract.proposals(i));
+    for (let i = 0; i < dispCount; i++) disputes.push(await daoContract.disputes(i));
+
+    const now = Math.floor(Date.now() / 1000);
+    const active = proposals.filter(p => !p.executed && !p.cancelled && p.votingDeadline.toNumber() > now).length;
+    document.getElementById('daoStatProps').textContent = propCount;
+    document.getElementById('daoStatActive').textContent = active;
+    document.getElementById('daoStatDisputes').textContent = dispCount;
+
+    await renderProposals();
+    renderDisputes();
+  } catch(e) {
+    propGrid.innerHTML = `<div class="empty-state">Failed to load DAO: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function renderProposals() {
+  const grid = document.getElementById('proposalsGrid');
+  if (proposals.length === 0) {
+    grid.innerHTML = `<div class="empty-state">No proposals yet. Be the first to propose a market!</div>`;
+    return;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  let voterStatus = {};
+  if (account && daoContract) {
+    for (let i = 0; i < proposals.length; i++) {
+      try { voterStatus[i] = await daoContract.hasVoted(i, account); } catch { voterStatus[i] = false; }
+    }
+  }
+
+  grid.innerHTML = '';
+  for (let i = proposals.length - 1; i >= 0; i--) {
+    const p = proposals[i];
+    const vd = p.votingDeadline.toNumber();
+    const votingActive = !p.executed && !p.cancelled && vd > now;
+    const votingEnded  = !p.executed && !p.cancelled && vd <= now;
+    const passed       = votingEnded && p.votesFor.gt(p.votesAgainst);
+    const rejected     = votingEnded && !p.votesFor.gt(p.votesAgainst);
+
+    let badgeHtml = '';
+    let badgeClass = '';
+    if (p.executed)       { badgeHtml = '✓ Executed'; badgeClass = 'pbadge-executed'; }
+    else if (p.cancelled) { badgeHtml = 'Cancelled';  badgeClass = 'pbadge-cancelled'; }
+    else if (votingActive){ badgeHtml = '● Voting';   badgeClass = 'pbadge-active'; }
+    else if (passed)      { badgeHtml = 'Passed';     badgeClass = 'pbadge-passed'; }
+    else if (rejected)    { badgeHtml = 'Rejected';   badgeClass = 'pbadge-rejected'; }
+
+    const totalVotes = p.votesFor.toNumber() + p.votesAgainst.toNumber();
+    const forPct    = totalVotes > 0 ? (p.votesFor.toNumber() / totalVotes * 100).toFixed(1) : 0;
+    const againstPct= totalVotes > 0 ? (p.votesAgainst.toNumber() / totalVotes * 100).toFixed(1) : 0;
+
+    const deadline = new Date(vd * 1000).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const endDate  = new Date(p.endTime.toNumber() * 1000).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const strikeF  = (Number(p.strikePrice) / 1e8).toLocaleString('en-US',{style:'currency',currency:'USD'});
+    const alreadyVoted = voterStatus[i];
+
+    let actions = '';
+    if (votingActive && account) {
+      if (alreadyVoted) {
+        actions = `<span class="voted-badge">✓ Voted</span>`;
+      } else {
+        actions = `
+          <button class="btn-vote-for"     onclick="voteProposal(${i},true)">👍 For</button>
+          <button class="btn-vote-against" onclick="voteProposal(${i},false)">👎 Against</button>`;
+      }
+    }
+    // Owner can execute or cancel
+    if (passed && account) {
+      actions += `<button class="btn-execute-p" onclick="executeProposal(${i})">⚡ Execute</button>`;
+    }
+    if (!p.executed && !p.cancelled && account) {
+      actions += `<button class="btn-cancel-p" onclick="cancelProposal(${i})">✕ Cancel</button>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'proposal-card' + (p.executed ? ' executed' : p.cancelled ? ' cancelled' : '');
+    card.innerHTML = `
+      <div class="proposal-top">
+        <div class="proposal-id">Proposal #${i}</div>
+        <span class="proposal-badge ${badgeClass}">${badgeHtml}</span>
+      </div>
+      <div class="proposal-question">${escHtml(p.question)}</div>
+      <div class="proposal-meta">
+        <div class="meta-item">Market Closes<span>${endDate}</span></div>
+        <div class="meta-item">Strike<span>${strikeF}</span></div>
+        <div class="meta-item">Voting Deadline<span>${deadline}</span></div>
+      </div>
+      <div class="vote-bar-wrap">
+        <div class="vote-bar">
+          <div class="vote-for"      style="width:${forPct}%"></div>
+          <div class="vote-against"  style="width:${againstPct}%"></div>
+        </div>
+        <div class="vote-labels">
+          <span class="vote-for-label">For: ${p.votesFor.toString()} (${forPct}%)</span>
+          <span class="vote-against-label">Against: ${p.votesAgainst.toString()} (${againstPct}%)</span>
+        </div>
+      </div>
+      ${actions ? `<div class="proposal-actions">${actions}</div>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+}
+
+function renderDisputes() {
+  const grid = document.getElementById('disputesGrid');
+  if (disputes.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="padding:2rem">No disputes filed</div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  for (let i = disputes.length - 1; i >= 0; i--) {
+    const d = disputes[i];
+    const card = document.createElement('div');
+    card.className = 'dispute-card';
+    card.innerHTML = `
+      <div class="dispute-top">
+        <div class="dispute-id">Dispute #${i}</div>
+        ${d.resolved
+          ? '<span class="dispute-resolved-badge">✓ Resolved</span>'
+          : '<span class="dispute-open-badge">⚠ Open</span>'}
+      </div>
+      <div class="dispute-reason">${escHtml(d.reason)}</div>
+      <div class="dispute-meta">
+        <span>Market ID: <strong style="color:var(--text)">#${d.marketId.toString()}</strong></span>
+        <span>Disputor: ${d.disputor.slice(0,10)}...${d.disputor.slice(-6)}</span>
+      </div>
+      ${!d.resolved && account ? `<button class="btn-resolve-dispute" onclick="resolveDispute(${i})">⚡ Resolve Dispute</button>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+}
+
+// ─────────────────────────────────────────────
+// DAO ACTIONS
+// ─────────────────────────────────────────────
+async function submitProposal() {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  const question   = document.getElementById('propQuestion').value.trim();
+  const feed       = document.getElementById('propFeed').value;
+  const strike     = document.getElementById('propStrike').value;
+  const endTime    = document.getElementById('propEndTime').value;
+  const votingDur  = document.getElementById('propVotingDur').value;
+  if (!question || !strike || !endTime || !votingDur) { toast('Missing Fields', 'error', 'Fill All Fields', 'All fields are required.'); return; }
+  const btn = document.getElementById('btnPropose');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    toast('Submitting', 'pending', 'Submit Proposal to DAO', 'Please confirm in MetaMask...');
+    const tx = await daoContract.createMarketProposal(question, parseInt(endTime), feed, strike, parseInt(votingDur));
+    toast('Pending', 'pending', 'Proposal Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Created', 'success', '✓ Proposal Created',
+      `Your proposal "${question.slice(0,50)}${question.length>50?'...':''}" is now open for voting.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    closeModal('propModal');
+    loadDAO();
+  } catch(e) {
+    toast('Failed', 'error', 'Proposal Failed', e.reason || e.message || 'Unknown error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Submit Proposal';
+  }
+}
+
+async function voteProposal(proposalId, support) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  try {
+    toast('Voting', 'pending', `Vote ${support?'FOR':'AGAINST'} Proposal #${proposalId}`, 'Please confirm in MetaMask...');
+    const tx = await daoContract.voteOnProposal(proposalId, support);
+    toast('Pending', 'pending', 'Vote Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Voted', 'success', `✓ Voted ${support?'FOR':'AGAINST'} Proposal #${proposalId}`,
+      `Your vote has been recorded on-chain.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    loadDAO();
+  } catch(e) {
+    toast('Failed', 'error', 'Vote Failed', e.reason || e.message || 'You may have already voted.');
+  }
+}
+
+async function executeProposal(proposalId) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  try {
+    toast('Executing', 'pending', `Execute Proposal #${proposalId}`, 'Creating the market on PredictionMarket contract. Please confirm in MetaMask...');
+    const tx = await daoContract.executeProposal(proposalId);
+    toast('Pending', 'pending', 'Execution Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Executed', 'success', `✓ Proposal #${proposalId} Executed`,
+      `The market has been created on the PredictionMarket contract via DAO governance.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    loadDAO();
+    loadMarkets();
+  } catch(e) {
+    toast('Failed', 'error', 'Execution Failed', e.reason || e.message || 'Check that voting has ended and proposal passed.');
+  }
+}
+
+async function cancelProposal(proposalId) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  try {
+    toast('Cancelling', 'pending', `Cancel Proposal #${proposalId}`, 'Please confirm in MetaMask...');
+    const tx = await daoContract.cancelProposal(proposalId);
+    const receipt = await tx.wait();
+    toast('Cancelled', 'success', `✓ Proposal #${proposalId} Cancelled`, `Block: #${receipt.blockNumber}`, tx.hash);
+    loadDAO();
+  } catch(e) {
+    toast('Failed', 'error', 'Cancellation Failed', e.reason || e.message);
+  }
+}
+
+async function submitDispute() {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  const marketId = document.getElementById('disputeMarketId').value;
+  const reason   = document.getElementById('disputeReason').value.trim();
+  if (!reason) { toast('Missing Reason', 'error', 'Enter a Reason', 'Please describe why you are disputing this outcome.'); return; }
+  const btn = document.getElementById('btnDispute');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    toast('Filing Dispute', 'pending', `Open Dispute on Market #${marketId}`, 'Please confirm in MetaMask...');
+    const tx = await daoContract.openDispute(parseInt(marketId), reason);
+    toast('Pending', 'pending', 'Dispute Submitted', `Tx: ${tx.hash.slice(0,18)}...`, tx.hash);
+    const receipt = await tx.wait();
+    toast('Filed', 'success', `✓ Dispute Opened on Market #${marketId}`,
+      `Your dispute has been recorded. The DAO owner will review and may trigger re-resolution.\nBlock: #${receipt.blockNumber}`, tx.hash);
+    closeModal('disputeModal');
+    loadDAO();
+  } catch(e) {
+    toast('Failed', 'error', 'Dispute Failed', e.reason || e.message || 'Unknown error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Open Dispute';
+  }
+}
+
+async function resolveDispute(disputeId) {
+  if (!signer) { toast('Not Connected', 'error', 'Wallet Required', 'Connect your wallet first.'); return; }
+  try {
+    toast('Resolving Dispute', 'pending', `Resolve Dispute #${disputeId}`, 'Please confirm in MetaMask...');
+    const tx = await daoContract.resolveDispute(disputeId);
+    const receipt = await tx.wait();
+    toast('Resolved', 'success', `✓ Dispute #${disputeId} Resolved`, `Block: #${receipt.blockNumber}`, tx.hash);
+    loadDAO();
+  } catch(e) {
+    toast('Failed', 'error', 'Dispute Resolution Failed', e.reason || e.message);
+  }
+}
+
+// ─────────────────────────────────────────────
+// MODALS
+// ─────────────────────────────────────────────
+function openCreateModal()  { if(!signer){toast('Not Connected','error','Wallet Required','Connect first.');return;} document.getElementById('createModal').classList.add('open'); }
+function openPropModal()    { if(!signer){toast('Not Connected','error','Wallet Required','Connect first.');return;} document.getElementById('propModal').classList.add('open'); }
+function openDisputeModal() { if(!signer){toast('Not Connected','error','Wallet Required','Connect first.');return;} document.getElementById('disputeModal').classList.add('open'); }
+function closeModal(id)     { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+});
+
+// ─────────────────────────────────────────────
+// TOAST SYSTEM — длинные уведомления с Etherscan
+// ─────────────────────────────────────────────
+let toastCount = 0;
+/**
+ * @param {string} type    success | error | info | pending
+ * @param {string} title   Заголовок тоста
+ * @param {string} body    Подробное описание
+ * @param {string} txHash  Хеш транзакции (опционально — покажет ссылку на Etherscan)
+ */
+function toast(typeOrTitle, type='info', title='', body='', txHash='') {
+  // backward compat: старый вызов toast(html, type)
+  if (arguments.length <= 2) {
+    title = typeOrTitle;
+    body  = '';
+    txHash = '';
+  }
+
+  const container = document.getElementById('toastContainer');
+  const id = 'toast-' + (++toastCount);
+
+  const icons = {
+    success: '✓',
+    error:   '✕',
+    info:    'ℹ',
+    pending: '⏳'
+  };
+
+  const durations = { success: 8000, error: 10000, info: 5000, pending: 12000 };
+  const dur = durations[type] || 7000;
+
+  const etherscanLink = txHash
+    ? `<a class="toast-link" href="${ETHERSCAN}/tx/${txHash}" target="_blank">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View on Etherscan ↗
+       </a>`
+    : '';
+
+  const txDisplay = txHash
+    ? `<div class="tx-hash" style="margin-top:0.3rem;font-size:0.67rem;color:var(--muted)">${txHash.slice(0,12)}...${txHash.slice(-8)}</div>`
+    : '';
+
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.id = id;
+  el.style.setProperty('--toast-dur', dur + 'ms');
+  el.innerHTML = `
+    <div class="toast-icon-wrap">${icons[type] || 'ℹ'}</div>
+    <div class="toast-left">
+      <div class="toast-title">${escHtml(title)}</div>
+      ${body ? `<div class="toast-body">${escHtml(body)}${txDisplay}${etherscanLink}</div>` : ''}
+    </div>
+    <button class="toast-close" onclick="document.getElementById('${id}').remove()">×</button>
+  `;
+  container.appendChild(el);
+
+  setTimeout(() => {
+    if (document.getElementById(id)) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(40px)';
+      el.style.transition = 'opacity 0.35s, transform 0.35s';
+      setTimeout(() => el.remove(), 350);
+    }
+  }, dur);
+}
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function escHtml(s) {
+  if (typeof s !== 'string') s = String(s || '');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  document.getElementById('newEndTime').value = Math.floor(Date.now() / 1000) + 7 * 86400;
+  document.getElementById('propEndTime').value = Math.floor(Date.now() / 1000) + 30 * 86400;
+
+  if (window.ethereum) {
+    const accs = await window.ethereum.request({ method: 'eth_accounts' }).catch(() => []);
+    if (accs.length > 0) { connectWallet(); return; }
+  }
+  loadMarkets();
+});
+</script>
+</body>
+</html>
