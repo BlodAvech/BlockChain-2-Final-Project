@@ -670,15 +670,15 @@
     <div class="contract-info">
       <div class="contract-pill">
         <span class="label">PredictionMarket</span>
-        <a href="https://sepolia.etherscan.io/address/0x1f271203a5e38683b47411cb9061015d61206b62" target="_blank">0x1f27...6b62</a>
+        <a href="https://sepolia.etherscan.io/address/0xebed2df38975ec2cd73d4e2c327bfc5b121739c7" target="_blank">0xeBEd...39C7</a>
       </div>
       <div class="contract-pill">
         <span class="label">OutcomeToken (ERC-1155)</span>
-        <a href="https://sepolia.etherscan.io/address/0xcc2ce70a9fc590d0d890b8a33d45fca109469f21" target="_blank">0xcc2c...9f21</a>
+        <a href="https://sepolia.etherscan.io/address/0x4edde85e08666c928c8774abc03655bb19a6583b" target="_blank">0x4EDd...583b</a>
       </div>
       <div class="contract-pill">
         <span class="label">FeeVault</span>
-        <a href="https://sepolia.etherscan.io/address/0x879e1b738856658f8d0c6a0d5364a32bdc244e22" target="_blank">0x879e...4e22</a>
+        <a href="https://sepolia.etherscan.io/address/0x2bf520e5495797895d59333b9025129922402d71" target="_blank">0x2BF5...2D71</a>
       </div>
     </div>
 
@@ -719,7 +719,7 @@
     <div class="contract-info">
       <div class="contract-pill dao-pill">
         <span class="label">MarketDAO</span>
-        <a href="https://sepolia.etherscan.io/address/0x0000000000000000000000000000000000000000" target="_blank">Deploy needed</a>
+        <a href="https://sepolia.etherscan.io/address/0xd70dEc70Bc0940A76C8dC1DfD15a0e3Efaa3a1da" target="_blank">0xd70d...a1da</a>
       </div>
     </div>
 
@@ -827,11 +827,10 @@
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
-const PM_ADDRESS  = "0x1f271203a5e38683b47411cb9061015d61206b62";
-const OT_ADDRESS  = "0xcc2ce70a9fc590d0d890b8a33d45fca109469f21";
-const FV_ADDRESS  = "0x879e1b738856658f8d0c6a0d5364a32bdc244e22";
-// DAO address — replace after deployment
-const DAO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const PM_ADDRESS  = "0xebed2df38975ec2cd73d4e2c327bfc5b121739c7";
+const OT_ADDRESS  = "0x4edde85e08666c928c8774abc03655bb19a6583b";
+const FV_ADDRESS  = "0x2bf520e5495797895d59333b9025129922402d71";
+const DAO_ADDRESS = "0xd70dec70bc0940a76c8dc1dfd15a0e3efaa3a1da";
 const CHAIN_ID    = 11155111;
 const ETHERSCAN   = "https://sepolia.etherscan.io";
 
@@ -1230,7 +1229,7 @@ async function loadDAO() {
   const propGrid = document.getElementById('proposalsGrid');
   const dispGrid = document.getElementById('disputesGrid');
 
-  if (!daoContract || DAO_ADDRESS === "0x0000000000000000000000000000000000000000") {
+  if (false) { // DAO is deployed
     propGrid.innerHTML = `<div class="empty-state">
       <div style="font-size:1.5rem;margin-bottom:0.75rem">🏛</div>
       MarketDAO not yet deployed.<br/>
