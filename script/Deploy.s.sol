@@ -28,7 +28,7 @@ contract Deploy is Script {
         outcomeToken.setPredictionMarket(address(predictionMarket));
 
         MarketDAO marketDAO = new MarketDAO(address(predictionMarket));
-        
+
         predictionMarket.setOwner(address(marketDAO));
 
         vm.stopBroadcast();
