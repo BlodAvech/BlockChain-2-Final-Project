@@ -5,6 +5,7 @@ import "forge-std/Script.sol";
 import "../contract/OutcomeToken.sol";
 import "../contract/FeeVault.sol";
 import "../contract/PredictionMarket.sol";
+import "../contract/MarketDAO.sol";
 
 contract Deploy is Script {
     function run() external {
@@ -25,6 +26,10 @@ contract Deploy is Script {
         PredictionMarket predictionMarket = new PredictionMarket(address(outcomeToken), address(feeVault));
 
         outcomeToken.setPredictionMarket(address(predictionMarket));
+
+        MarketDAO marketDAO = new MarketDAO(address(predictionMarket));
+        
+        predictionMarket.setOwner(address(marketDAO));
 
         vm.stopBroadcast();
     }

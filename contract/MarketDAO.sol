@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// Минимальный интерфейс PredictionMarket по плану
 interface IPredictionMarket {
     function createMarket(
         string memory question,
@@ -153,7 +152,7 @@ contract MarketDAO {
 
     /// @notice Выполнить предложение — создать настоящий рынок в PredictionMarket
     /// Вызывает createMarket на PredictionMarket
-    function executeProposal(uint256 proposalId) external onlyOwner {
+    function executeProposal(uint256 proposalId) external {
         require(proposalId < proposalCount, "proposal does not exist");
         MarketProposal storage p = proposals[proposalId];
 
